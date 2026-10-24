@@ -34,7 +34,9 @@ jobs:
         env:
           ADMIN_DATABASE_URL: postgres://postgres@localhost:5432/postgres
         run: |
-          echo "READER_PASSWORD=$(openssl rand -hex 24)" >> "$GITHUB_ENV"
+          READER_PASSWORD="$(openssl rand -hex 24)"
+          export READER_PASSWORD
+          echo "READER_PASSWORD=${READER_PASSWORD}" >> "$GITHUB_ENV"
           npm run db:setup
       - name: Point the app at the read-only role
         run: |
