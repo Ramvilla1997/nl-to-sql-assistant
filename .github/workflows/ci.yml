@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Create database objects and read-only role
+        env:
+          ADMIN_DATABASE_URL: postgres://postgres@localhost:5432/postgres
+        run: |
+          echo "READER_PASSWORD=$(openssl rand -hex 24)" >> "$GITHUB_ENV"
+          npm run db:setup
+      - name: Point the app at the read-only role
+        run: |
+          echo "DATABASE_URL=postgres://nl_sql_reader:${READER_PASSWORD}@localhost:5432/postgres" >> "$GITHUB_ENV"
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: npm run demo
